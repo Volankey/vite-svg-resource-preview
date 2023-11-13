@@ -3,6 +3,7 @@ import PreviewIcons from './components/PreviewIcons.vue'
 </script>
 
 <template>
+  svg resources
   <PreviewIcons/>
 </template>
 

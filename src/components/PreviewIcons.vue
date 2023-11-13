@@ -16,6 +16,7 @@ import {NSpace} from 'naive-ui'
     min-width: 32px;
     height: 32px;
     position: relative;
+    display: block;
 }
 svg{
     z-index: 10;
