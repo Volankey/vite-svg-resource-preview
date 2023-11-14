@@ -5,5 +5,5 @@ import svgData from './src/assets/svg-importer.json'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [previewIcons(Object.keys(svgData)), vue(),],
+  plugins: [previewIcons(Object.keys(svgData),svgData), vue(),],
 })

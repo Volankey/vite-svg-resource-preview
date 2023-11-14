@@ -6,7 +6,7 @@
 </template>
 
 <script setup lang="ts">
-import {NSpace} from 'naive-ui'
+import {NSpace,NPopover} from 'naive-ui'
 // icons script start
 // icons script end
 </script>
