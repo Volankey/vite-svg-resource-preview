@@ -3,7 +3,6 @@ import path from 'path'
 import { type Plugin, createLogger } from 'vite'
 import { compileTemplate } from 'vue/compiler-sfc'
 import { optimize as optimizeSvg } from 'svgo'
-import {getAssetsDir} from './utils'
 
 function filenameToTag(filename){
     filename = filename.replace(/-(\w)/g, ($0, $1) => {
