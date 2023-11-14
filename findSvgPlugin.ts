@@ -1,79 +1,109 @@
 import fs from 'fs'
 import path from 'path'
-import process from 'process'
 import { type Plugin, createLogger } from 'vite'
-import { getAssetsDir } from './utils'
+import { compileTemplate } from 'vue/compiler-sfc'
+import { optimize as optimizeSvg } from 'svgo'
 
-const findSvgPlugin = () => {
-  const map = new Map()
-  const outFile = () => {
-    const targetDir = getAssetsDir()
-    if (fs.existsSync(targetDir)) {
-      fs.rmdirSync(targetDir, { recursive: true })
-    }
-    fs.mkdirSync(targetDir, {
-      recursive: true,
-    })
-    const data: { [key: string]: string[] } = Array.from(map.entries()).reduce(
-      (acc: { [key: string]: string[] }, [key, value]) => {
-        acc[key] = Array.from(value)
-        return acc
-      },
-      {},
-    )
-    let count = 0
-    const newData: Record<string, string[]> = {}
-
-    Object.entries(data).forEach(([key, value]) => {
-      const name = path.relative(process.cwd(), key).replace(/\//g, '_')
-      const sourcePath = path.join(key)
-      const targetPath = path.join(targetDir, name)
-      newData[name] = value.map((item) => {
-        return path.relative(process.cwd(), item)
-      })
-      fs.copyFile(sourcePath, targetPath, (error) => {
-        if (error) {
-          console.log(error)
-        } else {
-          console.log('copied ' + targetPath)
-          count++
-        }
-      })
-      // archive.append(content, { name: name });
-    })
-    fs.writeFileSync(
-      path.join(targetDir, 'svg-importer.json'),
-      JSON.stringify(newData),
-    )
-    console.log(`copied ${count} svg files`)
-  }
-  const logger = createLogger()
+function filenameToTag(filename) {
+  filename = filename.replace(/-(\w)/g, ($0, $1) => {
+    return $1.toUpperCase()
+  })
+  filename = filename.replace(/_(\w)/g, ($0, $1) => {
+    return $1.toUpperCase()
+  })
+  return filename
+}
+export const previewIcons = (svgPaths: string[], svgData) => {
   return {
-    name: 'find-svg-plugin',
+    name: 'previewIcons',
     enforce: 'pre',
-    apply: 'build',
-    resolveId(id, importer) {
-      if (id.endsWith('.svg') && !importer?.endsWith('index.html')) {
-        let relativeKeyPath
-        if (path.isAbsolute(id)) {
-          relativeKeyPath = path.resolve(id)
-        } else {
-          relativeKeyPath = path.resolve(path.dirname(importer!), id)
-        }
-        relativeKeyPath = path.resolve(relativeKeyPath)
-        const relativeValuePath = path.resolve(importer!)
-        if (map.has(relativeKeyPath)) {
-          map.get(relativeKeyPath).add(relativeValuePath)
-        } else {
-          map.set(relativeKeyPath, new Set([relativeValuePath]))
-        }
+    load(id) {
+      if (id.endsWith('.svg')) {
+        console.log(id)
+        const [tpath, query] = id.split('?', 2)
+        const filename = filenameToTag(tpath)
+
+        // tpath = path.resolve('./assets',tpath)
+        let svg = fs.readFileSync(tpath, 'utf-8')
+        svg = optimizeSvg(svg, {
+          path: filename,
+        }).data
+        svg = svg
+          .replace(/<style/g, '<component is="style"')
+          .replace(/<\/style/g, '</component')
+        const { code } = compileTemplate({
+          id: JSON.stringify(id),
+          source: svg,
+          filename: filename,
+          transformAssetUrls: false,
+        })
+        return `${code}\nexport default { render: render }`
       }
-      return null
     },
-    closeBundle() {
-      outFile()
+    transform(code, id) {
+      if (id.includes('PreviewIcons.vue')) {
+        const svgNameMapPath = new Map()
+        /**
+                 * 
+                 * // icons script start
+        insert code here
+                    // icons script end
+                 */
+
+        const importCode = svgPaths
+          .map((svgPath) => {
+            let svgName = path.basename(svgPath, '.svg')
+            // svgName to camelCase
+            svgName = svgName.replace(/-(\w)/g, ($0, $1) => {
+              return $1.toUpperCase()
+            })
+            svgName = svgName.replace(/_(\w)/g, ($0, $1) => {
+              return $1.toUpperCase()
+            })
+            svgName = svgName.toLowerCase() + 'icon'
+            while (svgNameMapPath.get(svgName)) {
+              svgName = svgName + '1'
+            }
+            svgNameMapPath.set(svgName, svgPath)
+            return `import ${svgName} from '../assets/${svgPath}'`
+          })
+          .join('\n')
+        // replace code
+        code = code.replace(
+          /\/\/ icons script start[\s\S]*\/\/ icons script end/,
+          importCode,
+        )
+        // icon tags
+        const assets = path.join(__dirname, 'src', 'assets')
+        const iconTags = Array.from(svgNameMapPath.keys())
+          .map((svgName) => {
+            console.log(assets, '  ', svgNameMapPath.get(svgName))
+            return `<NPopover style="max-width:200px;">
+                <template #trigger>
+                <a class="icon-container" href="vscode://file${assets}/${svgNameMapPath.get(
+                  svgName,
+                )}">
+                          <div class="checkboard" />
+                          <${svgName} /></a>
+                </template>
+                <div>
+                    <p v-for="item in ${JSON.stringify(
+                      svgData[svgNameMapPath.get(svgName)],
+                    ).replace(/"/g, "'")}">{{ item }} </p>
+                </div>
+            </NPopover>`
+          })
+          .join('\n')
+        /**
+                 * <!-- icons template start -->
+    <!-- icons template end -->
+                 */
+        code = code.replace(
+          /<!-- icons template start -->[\s\S]*<!-- icons template end -->/,
+          iconTags,
+        )
+        return code
+      }
     },
   } as Plugin
 }
-
-export default findSvgPlugin
