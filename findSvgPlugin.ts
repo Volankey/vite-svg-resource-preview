@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import process from 'process'
 import { type Plugin, createLogger } from 'vite'
 import { getAssetsDir } from './utils'
 
@@ -24,11 +25,11 @@ const findSvgPlugin = () => {
     const newData: Record<string, string[]> = {}
 
     Object.entries(data).forEach(([key, value]) => {
-      const name = path.relative(__dirname, key).replace(/\//g, '_')
+      const name = path.relative(process.cwd(), key).replace(/\//g, '_')
       const sourcePath = path.join(key)
       const targetPath = path.join(targetDir, name)
       newData[name] = value.map((item) => {
-        return path.relative(__dirname, item)
+        return path.relative(process.cwd(), item)
       })
       fs.copyFile(sourcePath, targetPath, (error) => {
         if (error) {
