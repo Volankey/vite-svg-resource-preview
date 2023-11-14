@@ -14,12 +14,14 @@ import {NSpace,NPopover} from 'naive-ui'
 <style>
 .icon-container{
     min-width: 32px;
+    width: fit-content;
     height: 32px;
     position: relative;
     display: block;
 }
 svg{
     z-index: 10;
+    height: 32px;
     position: relative;
     /* mix-blend-mode: difference; */
 }
