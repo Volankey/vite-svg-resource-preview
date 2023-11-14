@@ -13,13 +13,12 @@ function filenameToTag(filename) {
   })
   return filename
 }
-export const previewIcons = (svgPaths: string[]) => {
+export const previewIcons = (svgPaths: string[], svgData) => {
   return {
     name: 'previewIcons',
     enforce: 'pre',
     load(id) {
       if (id.endsWith('.svg')) {
-        console.log(id)
         const [tpath, query] = id.split('?', 2)
         const filename = filenameToTag(tpath)
 
@@ -77,12 +76,20 @@ export const previewIcons = (svgPaths: string[]) => {
         const assets = path.join(__dirname, 'src', 'assets')
         const iconTags = Array.from(svgNameMapPath.keys())
           .map((svgName) => {
-            console.log(assets, '  ', svgNameMapPath.get(svgName))
-            return `<a class="icon-container" href="vscode://file${assets}/${svgNameMapPath.get(
-              svgName,
-            )}">
-                    <div class="checkboard" />
-                    <${svgName} /></a>`
+            return `<NPopover style="max-width:200px;">
+                <template #trigger>
+                <a class="icon-container" href="vscode://file${assets}/${svgNameMapPath.get(
+                  svgName,
+                )}">
+                          <div class="checkboard" />
+                          <${svgName} /></a>
+                </template>
+                <div>
+                    <div v-for="item in ${JSON.stringify(
+                      svgData[svgNameMapPath.get(svgName)],
+                    ).replace(/"/g, "'")}">{{ item }} </div>
+                </div>
+            </NPopover>`
           })
           .join('\n')
         /**
